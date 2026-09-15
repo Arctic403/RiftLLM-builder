@@ -134,12 +134,25 @@ jobs:
             > "$LOG_DIR/failure-context.txt"
           FAILURE_ZIP="$RUNNER_TEMP/RiftLLM-worker-failure-${SHORT_SHA}.zip"
           (cd "$LOG_DIR" && zip -qr "$FAILURE_ZIP" .)
+          NOTES_FILE="$RUNNER_TEMP/riftllm-private-failure-notes.txt"
+          {
+            printf 'RiftLLM build failed in public builder run %s. Exact private source %s. Client %s.\n\n' \
+              "$GITHUB_RUN_ID" "$SOURCE_SHA" "$CLIENT_ID"
+            if [ -s "$LOG_DIR/failure-summary.txt" ]; then
+              printf '%s\n' 'Private verifier summary:'
+              printf '%s\n' '```text'
+              cat "$LOG_DIR/failure-summary.txt"
+              printf '%s\n' '```'
+            else
+              printf '%s\n' 'No stage-specific verifier summary was produced. Detailed diagnostics are attached privately.'
+            fi
+          } > "$NOTES_FILE"
           gh release create "$TAG" "$FAILURE_ZIP" \
             --repo Arctic403/RiftLLM \
             --target "$SOURCE_SHA" \
             --prerelease \
             --title "RiftLLM worker FAILED ${SHORT_SHA}" \
-            --notes "RiftLLM build failed in public builder run ${GITHUB_RUN_ID}. Exact private source ${SOURCE_SHA}. Client ${CLIENT_ID}. Detailed diagnostics are attached privately."
+            --notes-file "$NOTES_FILE"
 
       - name: Destroy private checkout and transient outputs
         if: ${{ always() }}

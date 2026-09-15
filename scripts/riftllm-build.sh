@@ -102,6 +102,13 @@ for apk in "${APKS[@]}"; do
   if ! bash "$SCRIPT_DIR/verify-riftllm-apk.sh" "$dest" "$kind" \
       > "$VERIFY_DIR/${kind}.log" 2>&1; then
     cp "$VERIFY_DIR/${kind}.log" "$LOG_DIR/apk-${kind}-verification.log" || true
+    {
+      printf 'verification_stage=apk\n'
+      printf 'abi=%s\n' "$kind"
+      printf 'artifact=%s\n' "$(basename "$dest")"
+      printf '%s\n' '--- verifier output ---'
+      tail -n 80 "$VERIFY_DIR/${kind}.log" 2>/dev/null || true
+    } > "$LOG_DIR/failure-summary.txt"
     echo "RiftLLM ${kind} APK verification failed; details returned privately." >&2
     exit 1
   fi
