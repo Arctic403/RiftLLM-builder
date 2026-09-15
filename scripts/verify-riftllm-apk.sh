@@ -10,9 +10,14 @@ BUILD_TOOLS="${ANDROID_HOME:?}/build-tools/36.0.0"
 AAPT2="$BUILD_TOOLS/aapt2"
 ZIPALIGN="$BUILD_TOOLS/zipalign"
 APKSIGNER="$BUILD_TOOLS/apksigner"
+APKANALYZER="$(command -v apkanalyzer || true)"
+if [ -z "$APKANALYZER" ] && [ -x "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" ]; then
+  APKANALYZER="$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer"
+fi
 for tool in "$AAPT2" "$ZIPALIGN" "$APKSIGNER"; do
   test -x "$tool" || { echo "Required Android build tool missing: $tool" >&2; exit 1; }
 done
+test -x "$APKANALYZER" || { echo 'Required Android SDK tool apkanalyzer is missing.' >&2; exit 1; }
 command -v unzip >/dev/null 2>&1 || { echo 'unzip is required.' >&2; exit 1; }
 
 entries="$(unzip -Z1 "$APK")"
@@ -49,17 +54,20 @@ esac || { echo "APK native ABI payload does not match $EXPECTED." >&2; exit 1; }
 "$ZIPALIGN" -c -P 16 -v 4 "$APK" >/dev/null
 "$APKSIGNER" verify --verbose --print-certs "$APK" >/dev/null
 
-# Prove the final artifact contains the RiftLLM Java/JNI shell and the promoted native runtime,
-# rather than validating source alone. Extract first so pipefail cannot misclassify an early
-# successful grep exit as an unzip SIGPIPE failure.
-tmp_dex="$(mktemp)"
-unzip -p "$APK" classes.dex > "$tmp_dex"
-if ! grep -aFq 'Lcom/riftllm/app/MainActivity;' "$tmp_dex"; then
-  rm -f "$tmp_dex"
-  echo 'RiftLLM MainActivity descriptor is missing from classes.dex.' >&2
+# Prove the final artifact contains the RiftLLM Android shell without assuming D8/R8
+# placed MainActivity in classes.dex. apkanalyzer understands the DEX format and scans all
+# packaged DEX files by default, so this remains valid when multidex layout changes.
+manifest_xml="$($APKANALYZER manifest print "$APK")"
+grep -Fq 'com.riftllm.app.MainActivity' <<< "$manifest_xml" || {
+  echo 'RiftLLM MainActivity is missing from the merged APK manifest.' >&2
   exit 1
-fi
-rm -f "$tmp_dex"
+}
+
+dex_packages="$($APKANALYZER dex packages --defined-only "$APK")"
+grep -Fq 'com.riftllm.app.MainActivity' <<< "$dex_packages" || {
+  echo 'RiftLLM MainActivity is not defined in any packaged DEX file.' >&2
+  exit 1
+}
 
 check_native_marker() {
   local entry="$1"
