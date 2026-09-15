@@ -1,0 +1,150 @@
+name: RiftLLM Private Build Worker
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Exact RiftLLM branch, tag, or commit to build
+        required: true
+        default: main
+        type: string
+      client_id:
+        description: Optional local correlation id copied into private release notes
+        required: false
+        default: ''
+        type: string
+      publish:
+        description: Return verified outputs to private RiftLLM as a prerelease
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: riftllm-private-worker
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    env:
+      SOURCE_SHA: ''
+      CLIENT_ID: ${{ inputs.client_id }}
+      PUBLISH: ${{ inputs.publish }}
+    steps:
+      - name: Resolve exact private RiftLLM source
+        id: source
+        env:
+          GH_TOKEN: ${{ secrets.RIFTLLM_PRIVATE_TOKEN }}
+          SOURCE_REF: ${{ inputs.source_ref }}
+        run: |
+          set -euo pipefail
+          test -n "${GH_TOKEN:-}" || { echo 'RIFTLLM_PRIVATE_TOKEN is required.' >&2; exit 1; }
+          SOURCE_SHA="$(gh api "repos/Arctic403/RiftLLM/commits/${SOURCE_REF:-main}" --jq '.sha')"
+          CLIENT_ID="${CLIENT_ID:-manual-${GITHUB_RUN_ID}}"
+          echo "source_sha=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
+          echo "SOURCE_SHA=$SOURCE_SHA" >> "$GITHUB_ENV"
+          echo "CLIENT_ID=$CLIENT_ID" >> "$GITHUB_ENV"
+
+      - name: Check out public builder
+        uses: actions/checkout@v7
+        with:
+          path: worker
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Check out private RiftLLM source
+        uses: actions/checkout@v7
+        with:
+          repository: Arctic403/RiftLLM
+          ref: ${{ steps.source.outputs.source_sha }}
+          token: ${{ secrets.RIFTLLM_PRIVATE_TOKEN }}
+          path: source
+          persist-credentials: false
+          fetch-depth: 1
+          show-progress: false
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          SDKMANAGER="$(command -v sdkmanager || true)"
+          if [ -z "$SDKMANAGER" ] && [ -x "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" ]; then
+            SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          fi
+          test -x "$SDKMANAGER" || { echo 'sdkmanager is unavailable.' >&2; exit 1; }
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "$(dirname "$SDKMANAGER")" >> "$GITHUB_PATH"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" \
+            "platforms;android-36" \
+            "build-tools;36.0.0" \
+            "ndk;28.2.13676358" >/dev/null
+
+      - name: Set up pinned Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '8.13'
+          cache-provider: basic
+          cache-read-only: false
+          cache-cleanup: on-success
+
+      - name: Build and verify private RiftLLM source
+        shell: bash
+        run: bash worker/scripts/riftllm-build.sh source
+
+      - name: Return verified outputs to private RiftLLM prerelease
+        if: ${{ success() && env.PUBLISH == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.RIFTLLM_PRIVATE_TOKEN }}
+        run: |
+          set -euo pipefail
+          SHORT_SHA="${SOURCE_SHA:0:8}"
+          TAG="riftllm-worker-${GITHUB_RUN_ID}-${SHORT_SHA}"
+          gh release create "$TAG" "$RUNNER_TEMP"/riftllm-output/* \
+            --repo Arctic403/RiftLLM \
+            --target "$SOURCE_SHA" \
+            --prerelease \
+            --title "RiftLLM worker build ${SHORT_SHA}" \
+            --notes "RiftLLM Android build produced by public Arctic403/RiftLLM-builder run ${GITHUB_RUN_ID}. Exact private source ${SOURCE_SHA}. Client ${CLIENT_ID}. Source and detailed build logs were not published by the worker."
+
+      - name: Return private failure diagnostics
+        if: ${{ failure() && env.PUBLISH == 'true' && env.SOURCE_SHA != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.RIFTLLM_PRIVATE_TOKEN }}
+        run: |
+          set -euo pipefail
+          SHORT_SHA="${SOURCE_SHA:0:8}"
+          TAG="riftllm-worker-failed-${GITHUB_RUN_ID}-${SHORT_SHA}"
+          LOG_DIR="$RUNNER_TEMP/riftllm-private-logs"
+          mkdir -p "$LOG_DIR"
+          printf 'source_sha=%s\nclient_id=%s\nbuilder_run_id=%s\nbuilder_sha=%s\n' \
+            "$SOURCE_SHA" "$CLIENT_ID" "$GITHUB_RUN_ID" "$GITHUB_SHA" \
+            > "$LOG_DIR/failure-context.txt"
+          FAILURE_ZIP="$RUNNER_TEMP/RiftLLM-worker-failure-${SHORT_SHA}.zip"
+          (cd "$LOG_DIR" && zip -qr "$FAILURE_ZIP" .)
+          gh release create "$TAG" "$FAILURE_ZIP" \
+            --repo Arctic403/RiftLLM \
+            --target "$SOURCE_SHA" \
+            --prerelease \
+            --title "RiftLLM worker FAILED ${SHORT_SHA}" \
+            --notes "RiftLLM build failed in public builder run ${GITHUB_RUN_ID}. Exact private source ${SOURCE_SHA}. Client ${CLIENT_ID}. Detailed diagnostics are attached privately."
+
+      - name: Destroy private checkout and transient outputs
+        if: ${{ always() }}
+        run: |
+          rm -rf source
+          rm -rf "$RUNNER_TEMP/riftllm-private-logs"
+          rm -rf "$RUNNER_TEMP/riftllm-output" "$RUNNER_TEMP/riftllm-verification"
+          echo 'Private RiftLLM checkout, outputs and detailed logs removed from the ephemeral public runner.'
