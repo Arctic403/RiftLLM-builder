@@ -73,6 +73,78 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Restore or bootstrap stable RiftLLM debug signing key
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.RIFTLLM_PRIVATE_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "${GH_TOKEN:-}" || { echo 'RIFTLLM_PRIVATE_TOKEN is required for private signing-key storage.' >&2; exit 1; }
+          mkdir -p "$HOME/.android"
+          KEYSTORE="$HOME/.android/debug.keystore"
+          SIGNING_TAG='riftllm-dev-signing-v1'
+          SIGNING_DIR="$RUNNER_TEMP/riftllm-signing"
+          FINGERPRINT_FILE="$SIGNING_DIR/riftllm-debug-signing-sha256.txt"
+          rm -rf "$SIGNING_DIR"
+          mkdir -p "$SIGNING_DIR"
+          if gh release view "$SIGNING_TAG" --repo Arctic403/RiftLLM >/dev/null 2>&1; then
+            gh release download "$SIGNING_TAG" \
+              --repo Arctic403/RiftLLM \
+              --pattern 'riftllm-debug.keystore' \
+              --pattern 'riftllm-debug-signing-sha256.txt' \
+              --dir "$SIGNING_DIR" \
+              --clobber
+            test -s "$SIGNING_DIR/riftllm-debug.keystore" || { echo 'Private RiftLLM signing keystore asset is missing.' >&2; exit 1; }
+            test -s "$FINGERPRINT_FILE" || { echo 'Private RiftLLM signing fingerprint asset is missing.' >&2; exit 1; }
+            cp "$SIGNING_DIR/riftllm-debug.keystore" "$KEYSTORE"
+          else
+            rm -f "$KEYSTORE"
+            keytool -genkeypair -v \
+              -keystore "$KEYSTORE" \
+              -storetype JKS \
+              -storepass android \
+              -alias androiddebugkey \
+              -keypass android \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 36500 \
+              -dname 'CN=RiftLLM Development,O=Rift,C=CA' >/dev/null 2>&1
+            FINGERPRINT="$(keytool -list -v \
+              -keystore "$KEYSTORE" \
+              -storetype JKS \
+              -storepass android \
+              -alias androiddebugkey \
+              | sed -n 's/^[[:space:]]*SHA256: //p' \
+              | tr -d ':' \
+              | tr '[:upper:]' '[:lower:]')"
+            [[ "$FINGERPRINT" =~ ^[0-9a-f]{64}$ ]] || { echo 'Could not resolve bootstrapped debug signing SHA-256.' >&2; exit 1; }
+            printf '%s\n' "$FINGERPRINT" > "$FINGERPRINT_FILE"
+            cp "$KEYSTORE" "$SIGNING_DIR/riftllm-debug.keystore"
+            gh release create "$SIGNING_TAG" \
+              "$SIGNING_DIR/riftllm-debug.keystore#riftllm-debug.keystore" \
+              "$FINGERPRINT_FILE#riftllm-debug-signing-sha256.txt" \
+              --repo Arctic403/RiftLLM \
+              --target "$SOURCE_SHA" \
+              --prerelease \
+              --title 'RiftLLM persistent development signing key v1' \
+              --notes 'Private development-only signing material used so RiftLLM debug APKs can update in place across ephemeral builder runs. Never use this key for production release signing.'
+            echo 'Bootstrapped persistent RiftLLM debug signing assets in the private RiftLLM repository.'
+          fi
+          chmod 600 "$KEYSTORE"
+          FINGERPRINT="$(keytool -list -v \
+            -keystore "$KEYSTORE" \
+            -storetype JKS \
+            -storepass android \
+            -alias androiddebugkey \
+            | sed -n 's/^[[:space:]]*SHA256: //p' \
+            | tr -d ':' \
+            | tr '[:upper:]' '[:lower:]')"
+          EXPECTED_FINGERPRINT="$(tr -d '[:space:]' < "$FINGERPRINT_FILE" | tr '[:upper:]' '[:lower:]')"
+          [[ "$FINGERPRINT" =~ ^[0-9a-f]{64}$ ]] || { echo 'Could not resolve stable debug signing SHA-256.' >&2; exit 1; }
+          test "$FINGERPRINT" = "$EXPECTED_FINGERPRINT" || { echo 'Private RiftLLM signing fingerprint asset does not match the keystore.' >&2; exit 1; }
+          echo "RIFTLLM_EXPECTED_SIGNING_SHA256=$FINGERPRINT" >> "$GITHUB_ENV"
+          echo "Stable RiftLLM debug signing certificate SHA-256: $FINGERPRINT"
+
       - name: Set up Android SDK
         shell: bash
         run: |
@@ -161,4 +233,6 @@ jobs:
           rm -rf "$RUNNER_TEMP/riftllm-host-build"
           rm -rf "$RUNNER_TEMP/riftllm-private-logs"
           rm -rf "$RUNNER_TEMP/riftllm-output" "$RUNNER_TEMP/riftllm-verification"
-          echo 'Private RiftLLM checkout, host build tree, outputs and detailed logs removed from the ephemeral public runner.'
+          rm -rf "$RUNNER_TEMP/riftllm-signing"
+          rm -f "$HOME/.android/debug.keystore"
+          echo 'Private RiftLLM checkout, transient signing keystore, host build tree, outputs and detailed logs removed from the ephemeral public runner.'

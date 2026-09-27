@@ -150,6 +150,21 @@ test "${#APKS[@]}" -eq 3 || {
   exit 1
 }
 
+EXPECTED_SIGNING_SHA256="${RIFTLLM_EXPECTED_SIGNING_SHA256:-}"
+[[ "$EXPECTED_SIGNING_SHA256" =~ ^[0-9a-f]{64}$ ]] || {
+  echo 'RIFTLLM_EXPECTED_SIGNING_SHA256 is missing or invalid.' >&2
+  exit 1
+}
+APKSIGNER="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}/build-tools/36.0.0/apksigner"
+test -x "$APKSIGNER" || { echo 'Android apksigner 36.0.0 is unavailable.' >&2; exit 1; }
+for apk in "${APKS[@]}"; do
+  ACTUAL_SIGNING_SHA256="$("$APKSIGNER" verify --print-certs "$apk" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n 1 | tr -d ':' | tr '[:upper:]' '[:lower:]')"
+  test "$ACTUAL_SIGNING_SHA256" = "$EXPECTED_SIGNING_SHA256" || {
+    echo "APK signing certificate mismatch for $(basename "$apk")." >&2
+    exit 1
+  }
+done
+
 seen_arm32=0
 seen_arm64=0
 seen_universal=0

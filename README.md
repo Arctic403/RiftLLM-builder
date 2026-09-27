@@ -4,7 +4,7 @@ Public GitHub Actions worker for building the **private** `Arctic403/RiftLLM` An
 
 The worker is infrastructure only. It receives an exact private RiftLLM source ref, resolves it to an immutable commit SHA, checks out that private commit with a restricted fine-grained token, runs the source-owned hardening gates, builds the three Android debug APK variants, verifies the final APKs, and publishes successful outputs back to a **private RiftLLM prerelease**. Failure diagnostics are zipped and returned to a private failure prerelease.
 
-No `actions/upload-artifact` step is allowed. The ephemeral private checkout, host CMake build tree, verification/output directories, and detailed private logs are deleted by the always-run cleanup at the end of every run.
+No `actions/upload-artifact` step is allowed. A development-only signing keystore is retained only as the private RiftLLM prerelease asset `riftllm-dev-signing-v1`; the public runner restores that exact key, verifies its certificate fingerprint, signs all debug APKs with it, then deletes the transient runner copy. The ephemeral private checkout, host CMake build tree, signing staging directory, verification/output directories, and detailed private logs are deleted by the always-run cleanup at the end of every run.
 
 ## Privacy boundary
 
@@ -44,11 +44,12 @@ The public runner necessarily knows the private repository name and exact commit
 5. Generate the pinned Gradle 8.13 wrapper inside the ephemeral checkout and run the exact source commit's `scripts/prebuild-check.sh`.
 6. Configure/build the host CMake tree with `RIFTLLM_BUILD_TESTS=ON` and require CTest to pass, including `riftllm_rift_pack_v1`. Record the host CMake version and successful CTest gate in provenance.
 7. Fetch the source-pinned llama.cpp revision with `scripts/fetch-llama.sh`.
-8. Build `:app:assembleDebug` using JDK 17, Android 36, Build Tools 36.0.0 and NDK 28.2.13676358.
-9. Require exactly one `armeabi-v7a`, one `arm64-v8a`, and one universal APK based on their actual packaged native libraries.
-10. Verify package id, absence of INTERNET permission, APK signature, 16 KiB native alignment, MainActivity, `RiftPackQualificationBridge`, `RiftProcessDeathRecoveryBridge`, `RiftTrainDataV2Reader`, both RiftPack qualification Dev API route strings, both fixed process-death Dev API route strings, preserved-checkpoint retry evidence, raw native resume-result evidence, the existing promoted RiftTensor marker, the native RiftPack qualification format marker, its exported JNI entry, both shared process-death JNI entries, and the expected ABI payload.
-11. Produce SHA-256 sums, provenance and a machine-readable build manifest.
-12. Publish only to a private RiftLLM prerelease; never to a public Actions artifact.
+8. Restore the exact development signing keystore from private RiftLLM prerelease `riftllm-dev-signing-v1`, or bootstrap it once on the first worker run, and bind its SHA-256 certificate fingerprint into the build environment.
+9. Build `:app:assembleDebug` using JDK 17, Android 36, Build Tools 36.0.0 and NDK 28.2.13676358.
+10. Require exactly one `armeabi-v7a`, one `arm64-v8a`, and one universal APK based on their actual packaged native libraries, and require every APK certificate SHA-256 to match the restored stable signing fingerprint.
+11. Verify package id, absence of INTERNET permission, APK signature, 16 KiB native alignment, MainActivity, `RiftPackQualificationBridge`, `RiftProcessDeathRecoveryBridge`, `RiftTrainDataV2Reader`, both RiftPack qualification Dev API route strings, both fixed process-death Dev API route strings, preserved-checkpoint retry evidence, raw native resume-result evidence, the existing promoted RiftTensor marker, the native RiftPack qualification format marker, its exported JNI entry, both shared process-death JNI entries, and the expected ABI payload.
+12. Produce SHA-256 sums, provenance and a machine-readable build manifest.
+13. Publish only to a private RiftLLM prerelease; never to a public Actions artifact.
 
 ## Required builder secret
 
@@ -56,7 +57,7 @@ Configure this **only in the public `Arctic403/RiftLLM-builder` repository**:
 
 - `RIFTLLM_PRIVATE_TOKEN` — a fine-grained token restricted to `Arctic403/RiftLLM` with the minimum permissions needed to read private source and create private release assets. `Contents: read/write` is sufficient for the current checkout + prerelease flow.
 
-The token should not grant write access to the public builder repository itself.
+The token should not grant write access to the public builder repository itself. It does need `Contents: read/write` on private `Arctic403/RiftLLM` because the worker stores the development-only signing keystore and its expected certificate fingerprint as private release assets under `riftllm-dev-signing-v1`. No signing key material is committed to either repository.
 
 ## Dispatch
 
