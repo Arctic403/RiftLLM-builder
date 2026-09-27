@@ -7,9 +7,21 @@ SOURCE_DIR="$(cd "$SOURCE_DIR" && pwd)"
 LOG_DIR="${RUNNER_TEMP:?}/riftllm-private-logs"
 OUT_DIR="${RUNNER_TEMP:?}/riftllm-output"
 VERIFY_DIR="${RUNNER_TEMP:?}/riftllm-verification"
+SOURCE_CONTRACT_LOG="$LOG_DIR/source-contract.log"
 SOURCE_ID="${SOURCE_SHA:-unknown000}"
 SHORT_SOURCE="${SOURCE_ID:0:8}"
 mkdir -p "$LOG_DIR" "$OUT_DIR" "$VERIFY_DIR"
+: > "$SOURCE_CONTRACT_LOG"
+
+source_contract_fail() {
+  local message="$1"
+  printf '%s\n' "$message" | tee -a "$SOURCE_CONTRACT_LOG" >&2
+  {
+    printf 'verification_stage=builder-source-contract\n'
+    printf '%s\n' "$message"
+  } > "$LOG_DIR/failure-summary.txt"
+  exit 1
+}
 
 bash -n "$SCRIPT_DIR/verify-riftllm-apk.sh"
 
@@ -53,25 +65,22 @@ for required_source in \
   android/app/src/main/cpp/rift_sha256_v1.cpp \
   android/app/src/main/cpp/rift_sha256_v1.hpp \
   android/app/src/main/java/com/riftllm/app/RiftPackQualificationBridge.kt \
+  android/app/src/main/java/com/riftllm/app/RiftTrainingDevBridge.kt \
   android/app/src/main/java/com/riftllm/app/RiftTrainDataV2Reader.kt \
   docs/RIFTPACK_QUALIFICATION_LAB_V1.md \
   docs/RIFTPACK_V1.md \
   docs/RIFT_TRAIN_DATA_V2.md \
   tests/rift_pack_v1.cpp; do
-  test -f "$required_source" || {
-    echo "RiftLLM builder contract missing required source: $required_source" >&2
-    exit 1
-  }
+  test -f "$required_source" || source_contract_fail \
+    "RiftLLM builder contract missing required source: $required_source"
 done
 
 require_source_marker() {
   local file="$1"
   local marker="$2"
   local label="$3"
-  grep -Fq "$marker" "$file" || {
-    echo "RiftLLM builder contract missing $label in $file" >&2
-    exit 1
-  }
+  grep -Fq "$marker" "$file" || source_contract_fail \
+    "RiftLLM builder contract missing $label in $file"
 }
 
 require_source_marker CMakeLists.txt 'rift_pack_qualification_lab.cpp' 'host RiftPack qualification compile wiring'
@@ -86,7 +95,17 @@ require_source_marker android/app/src/main/cpp/rift_pack_qualification_lab.cpp '
 require_source_marker android/app/src/main/cpp/rift_pack_qualification_lab.cpp 'modelSectionCorruptionRejected' 'model-section corruption evidence'
 require_source_marker android/app/src/main/cpp/rift_pack_qualification_lab.cpp 'interruptedStagePreserved' 'interrupted-stage preservation evidence'
 require_source_marker android/app/src/main/java/com/riftllm/app/RiftPackQualificationBridge.kt 'installedApkSha256' 'installed-APK evidence binding'
-require_source_marker android/app/src/main/java/com/riftllm/app/RiftPackQualificationBridge.kt 'MIN_FREE_BYTES = 2L * 1024L * 1024L * 1024L' 'RiftPack qualification storage guard'
+require_source_marker android/app/src/main/java/com/riftllm/app/RiftPackQualificationBridge.kt 'MIN_FREE_BYTES = 3L * 1024L * 1024L * 1024L' 'RiftPack real-state qualification storage guard'
+require_source_marker android/app/src/main/java/com/riftllm/app/RiftPackQualificationBridge.kt 'architectureSequence()' 'validated trainer-sequence derivation'
+require_source_marker android/app/src/main/java/com/riftllm/app/RiftPackQualificationBridge.kt 'actualSelectedTrainerStatePackaged' 'selected-trainer bridge evidence enforcement'
+require_source_marker android/app/src/main/cpp/rift_pack_qualification_lab.cpp 'prepare_rift_micro_process_death_recovery_lab_v1' 'frozen selected-trainer checkpoint authority reuse'
+require_source_marker android/app/src/main/cpp/rift_pack_qualification_lab.cpp 'selected-adafactor-checkpoint-v1' 'selected Adafactor checkpoint evidence identity'
+require_source_marker android/app/src/main/cpp/rift_pack_qualification_lab.cpp 'selectedCheckpointMasterHash64' 'selected checkpoint master identity evidence'
+require_source_marker android/app/src/main/cpp/rift_pack_qualification_lab.cpp 'selectedCheckpointOptimizerHash64' 'selected checkpoint optimizer identity evidence'
+require_source_marker android/app/src/main/cpp/rift_pack_qualification_lab.cpp '8622bbf5824dd50b' 'frozen selected checkpoint master hash'
+require_source_marker android/app/src/main/cpp/rift_pack_qualification_lab.cpp 'cf1010db7b11a48d' 'frozen selected checkpoint optimizer hash'
+require_source_marker android/app/src/main/cpp/rift_pack_qualification_lab.cpp 'trainingDataPackSha256' 'real RiftTrain pack provenance evidence'
+printf '%s\n' 'builder-source-contract=pass' >> "$SOURCE_CONTRACT_LOG"
 
 # The source intentionally does not carry generated Gradle-wrapper binaries. Generate the
 # pinned wrapper inside this ephemeral checkout, then let the source-owned prebuild gate verify it.

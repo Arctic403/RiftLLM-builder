@@ -31,7 +31,7 @@ Arctic403/RiftLLM private prerelease
   - sha256sums.txt
 ```
 
-Public workflow logs intentionally contain only coarse stage status where practical. Detailed source-validation, dependency-fetch, Gradle and APK-verification diagnostics are kept under `$RUNNER_TEMP/riftllm-private-logs` and are returned only through the private RiftLLM failure prerelease when publication is enabled.
+Public workflow logs intentionally contain only coarse stage status where practical. Detailed source-validation, builder source-contract, dependency-fetch, Gradle and APK-verification diagnostics are kept under `$RUNNER_TEMP/riftllm-private-logs` and are returned only through the private RiftLLM failure prerelease when publication is enabled. Early builder-contract failures write both `source-contract.log` and `failure-summary.txt`, so a rejected source shape is diagnosable from the private failure bundle instead of producing only source-integrity context.
 
 The public runner necessarily knows the private repository name and exact commit SHA it was authorized to build; it does **not** publish private source bytes or build artifacts.
 
