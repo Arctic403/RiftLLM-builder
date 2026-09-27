@@ -93,6 +93,10 @@ check_dex_marker() {
 }
 check_dex_marker 'riftpack_qualification_start' 'RiftPack qualification Dev API start route'
 check_dex_marker 'riftpack_qualification_status' 'RiftPack qualification Dev API status route'
+check_dex_marker 'actualSelectedTrainerStatePackaged' 'RiftPack real selected-trainer evidence field'
+check_dex_marker 'trainingDataPackSha256' 'RiftPack real training-data provenance field'
+check_dex_marker 'Validated four-transition RiftTrain sequence is unavailable' 'RiftPack validated trainer-sequence gate'
+check_dex_marker 'RiftPack qualification did not package the selected trainer state' 'RiftPack real-state bridge enforcement'
 check_dex_marker 'rift_micro_process_death_start' 'Rift-Micro process-death Dev API start route'
 check_dex_marker 'rift_micro_process_death_status' 'Rift-Micro process-death Dev API status route'
 check_dex_marker 'resumeRetryAvailable' 'Rift-Micro preserved-checkpoint retry evidence'
@@ -105,7 +109,7 @@ check_native_markers() {
   local tmp
   tmp="$(mktemp)"
   unzip -p "$APK" "$entry" > "$tmp"
-  for marker in     'neon16-lane-split-b64'     'riftllm-riftpack-qualification-v1'     'Java_com_riftllm_app_RiftPackQualificationNative_run'     'Java_com_riftllm_app_RiftProcessDeathRecoveryNative_prepare'     'Java_com_riftllm_app_RiftProcessDeathRecoveryNative_resume'     'rift-micro-process-death-recovery-baseline-a'     '"forcedProcessDeathQualified":true,'; do
+  for marker in     'neon16-lane-split-b64'     'riftllm-riftpack-qualification-v1'     'Java_com_riftllm_app_RiftPackQualificationNative_run'     'selected-adafactor-checkpoint-v1'     'actualSelectedTrainerStatePackaged'     'syntheticOptimizerFixture'     '8622bbf5824dd50b'     'cf1010db7b11a48d'     'Java_com_riftllm_app_RiftProcessDeathRecoveryNative_prepare'     'Java_com_riftllm_app_RiftProcessDeathRecoveryNative_resume'     'rift-micro-process-death-recovery-baseline-a'     '"forcedProcessDeathQualified":true,'; do
     if ! grep -aFq "$marker" "$tmp"; then
       rm -f "$tmp"
       echo "Required RiftLLM native marker missing from $entry: $marker" >&2
