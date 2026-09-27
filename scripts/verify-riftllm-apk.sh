@@ -98,13 +98,14 @@ check_dex_marker 'rift_micro_process_death_status' 'Rift-Micro process-death Dev
 check_dex_marker 'resumeRetryAvailable' 'Rift-Micro preserved-checkpoint retry evidence'
 check_dex_marker 'nativeResult' 'Rift-Micro raw native resume result evidence'
 check_dex_marker 'processResumeThreadRunning' 'Rift-Micro process-global resume lease evidence'
+check_dex_marker 'rift-micro-process-death-recovery-baseline-a' 'Rift-Micro frozen process-death recovery baseline identity'
 
 check_native_markers() {
   local entry="$1"
   local tmp
   tmp="$(mktemp)"
   unzip -p "$APK" "$entry" > "$tmp"
-  for marker in     'neon16-lane-split-b64'     'riftllm-riftpack-qualification-v1'     'Java_com_riftllm_app_RiftPackQualificationNative_run'     'Java_com_riftllm_app_RiftProcessDeathRecoveryNative_prepare'     'Java_com_riftllm_app_RiftProcessDeathRecoveryNative_resume'; do
+  for marker in     'neon16-lane-split-b64'     'riftllm-riftpack-qualification-v1'     'Java_com_riftllm_app_RiftPackQualificationNative_run'     'Java_com_riftllm_app_RiftProcessDeathRecoveryNative_prepare'     'Java_com_riftllm_app_RiftProcessDeathRecoveryNative_resume'     'rift-micro-process-death-recovery-baseline-a'     '"forcedProcessDeathQualified":true,'; do
     if ! grep -aFq "$marker" "$tmp"; then
       rm -f "$tmp"
       echo "Required RiftLLM native marker missing from $entry: $marker" >&2
