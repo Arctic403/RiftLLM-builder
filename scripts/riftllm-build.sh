@@ -136,7 +136,13 @@ if ! ./scripts/fetch-llama.sh > "$LOG_DIR/dependency-fetch.log" 2>&1; then
   exit 1
 fi
 
-if ! ./android/gradlew -p android --no-daemon --stacktrace --build-cache :app:assembleDebug \
+if ! ./android/gradlew -p android --no-daemon --stacktrace --build-cache \
+    -Pandroid.injected.signing.store.file="$HOME/.android/debug.keystore" \
+    -Pandroid.injected.signing.store.password=android \
+    -Pandroid.injected.signing.key.alias=androiddebugkey \
+    -Pandroid.injected.signing.key.password=android \
+    -Pandroid.injected.signing.store.type=JKS \
+    :app:assembleDebug \
     > "$LOG_DIR/android-build.log" 2>&1; then
   echo 'RiftLLM Android build failed; details returned privately.' >&2
   exit 1
