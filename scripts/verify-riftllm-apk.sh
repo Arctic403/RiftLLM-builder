@@ -64,7 +64,7 @@ grep -Fq 'com.riftllm.app.MainActivity' <<< "$manifest_xml" || {
 }
 
 dex_packages="$($APKANALYZER dex packages --defined-only "$APK")"
-for required_class in   com.riftllm.app.MainActivity   com.riftllm.app.RiftPackQualificationBridge   com.riftllm.app.RiftTrainDataV2Reader; do
+for required_class in   com.riftllm.app.MainActivity   com.riftllm.app.RiftPackQualificationBridge   com.riftllm.app.RiftProcessDeathRecoveryBridge   com.riftllm.app.RiftTrainDataV2Reader; do
   grep -Fq "$required_class" <<< "$dex_packages" || {
     echo "Required RiftLLM class is not defined in packaged DEX: $required_class" >&2
     exit 1
@@ -93,13 +93,15 @@ check_dex_marker() {
 }
 check_dex_marker 'riftpack_qualification_start' 'RiftPack qualification Dev API start route'
 check_dex_marker 'riftpack_qualification_status' 'RiftPack qualification Dev API status route'
+check_dex_marker 'rift_micro_process_death_start' 'Rift-Micro process-death Dev API start route'
+check_dex_marker 'rift_micro_process_death_status' 'Rift-Micro process-death Dev API status route'
 
 check_native_markers() {
   local entry="$1"
   local tmp
   tmp="$(mktemp)"
   unzip -p "$APK" "$entry" > "$tmp"
-  for marker in     'neon16-lane-split-b64'     'riftllm-riftpack-qualification-v1'     'Java_com_riftllm_app_RiftPackQualificationNative_run'; do
+  for marker in     'neon16-lane-split-b64'     'riftllm-riftpack-qualification-v1'     'Java_com_riftllm_app_RiftPackQualificationNative_run'     'Java_com_riftllm_app_RiftProcessDeathRecoveryNative_prepare'     'Java_com_riftllm_app_RiftProcessDeathRecoveryNative_resume'; do
     if ! grep -aFq "$marker" "$tmp"; then
       rm -f "$tmp"
       echo "Required RiftLLM native marker missing from $entry: $marker" >&2
