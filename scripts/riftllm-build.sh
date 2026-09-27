@@ -40,6 +40,54 @@ if [ -d .github/workflows ] && find .github/workflows -type f -print -quit | gre
   exit 1
 fi
 
+
+# Builder-owned source contract for the production-training/RiftPack qualification surface.
+# The private source still owns the detailed prebuild gate; these checks keep the public
+# builder from silently accepting a stale source shape that no longer contains the required
+# Android/native qualification authorities.
+for required_source in \
+  android/app/src/main/cpp/rift_pack_qualification_lab.cpp \
+  android/app/src/main/cpp/rift_pack_qualification_lab.hpp \
+  android/app/src/main/cpp/rift_pack_v1.cpp \
+  android/app/src/main/cpp/rift_pack_v1.hpp \
+  android/app/src/main/cpp/rift_sha256_v1.cpp \
+  android/app/src/main/cpp/rift_sha256_v1.hpp \
+  android/app/src/main/java/com/riftllm/app/RiftPackQualificationBridge.kt \
+  android/app/src/main/java/com/riftllm/app/RiftTrainDataV2Reader.kt \
+  docs/RIFTPACK_QUALIFICATION_LAB_V1.md \
+  docs/RIFTPACK_V1.md \
+  docs/RIFT_TRAIN_DATA_V2.md \
+  tests/rift_pack_v1.cpp; do
+  test -f "$required_source" || {
+    echo "RiftLLM builder contract missing required source: $required_source" >&2
+    exit 1
+  }
+done
+
+require_source_marker() {
+  local file="$1"
+  local marker="$2"
+  local label="$3"
+  grep -Fq "$marker" "$file" || {
+    echo "RiftLLM builder contract missing $label in $file" >&2
+    exit 1
+  }
+}
+
+require_source_marker CMakeLists.txt 'rift_pack_qualification_lab.cpp' 'host RiftPack qualification compile wiring'
+require_source_marker android/app/src/main/cpp/CMakeLists.txt 'rift_pack_qualification_lab.cpp' 'Android RiftPack qualification compile wiring'
+require_source_marker android/app/src/main/cpp/native_bridge.cpp 'Java_com_riftllm_app_RiftPackQualificationNative_run' 'RiftPack qualification JNI entry'
+require_source_marker android/app/src/main/cpp/native_bridge.cpp 'rift_pack_qualification = 16' 'RiftPack native lab-state isolation'
+require_source_marker android/app/src/main/java/com/riftllm/app/RiftDevLabProvider.kt 'riftpack_qualification_start' 'RiftPack Dev API start route'
+require_source_marker android/app/src/main/java/com/riftllm/app/RiftDevLabProvider.kt 'riftpack_qualification_status' 'RiftPack Dev API status route'
+require_source_marker android/app/src/main/cpp/rift_pack_qualification_lab.cpp '\"riftPackFrozen\":false' 'fail-closed RiftPack promotion flag'
+require_source_marker android/app/src/main/cpp/rift_pack_qualification_lab.cpp '\"productionPretrainingEligible\":false' 'fail-closed production-pretraining flag'
+require_source_marker android/app/src/main/cpp/rift_pack_qualification_lab.cpp 'headerCorruptionRejected' 'header-corruption evidence'
+require_source_marker android/app/src/main/cpp/rift_pack_qualification_lab.cpp 'modelSectionCorruptionRejected' 'model-section corruption evidence'
+require_source_marker android/app/src/main/cpp/rift_pack_qualification_lab.cpp 'interruptedStagePreserved' 'interrupted-stage preservation evidence'
+require_source_marker android/app/src/main/java/com/riftllm/app/RiftPackQualificationBridge.kt 'installedApkSha256' 'installed-APK evidence binding'
+require_source_marker android/app/src/main/java/com/riftllm/app/RiftPackQualificationBridge.kt 'MIN_FREE_BYTES = 2L * 1024L * 1024L * 1024L' 'RiftPack qualification storage guard'
+
 # The source intentionally does not carry generated Gradle-wrapper binaries. Generate the
 # pinned wrapper inside this ephemeral checkout, then let the source-owned prebuild gate verify it.
 if ! gradle -p android wrapper --gradle-version 8.13 --distribution-type bin \
@@ -51,6 +99,35 @@ chmod +x android/gradlew scripts/prebuild-check.sh scripts/build-android.sh scri
 
 if ! ./scripts/prebuild-check.sh > "$LOG_DIR/prebuild.log" 2>&1; then
   echo 'RiftLLM source hardening gate failed; details returned privately.' >&2
+  exit 1
+fi
+
+
+command -v cmake >/dev/null 2>&1 || { echo 'cmake is required for RiftLLM host qualification.' >&2; exit 1; }
+command -v ctest >/dev/null 2>&1 || { echo 'ctest is required for RiftLLM host qualification.' >&2; exit 1; }
+HOST_CMAKE_VERSION="$(cmake --version | awk 'NR == 1 { print $3 }')"
+export HOST_CMAKE_VERSION
+
+HOST_BUILD_DIR="${RUNNER_TEMP:?}/riftllm-host-build"
+rm -rf "$HOST_BUILD_DIR"
+if ! cmake -S . -B "$HOST_BUILD_DIR" -DCMAKE_BUILD_TYPE=Release -DRIFTLLM_BUILD_TESTS=ON \
+    > "$LOG_DIR/host-cmake-configure.log" 2>&1; then
+  echo 'RiftLLM host CMake configure failed; details returned privately.' >&2
+  exit 1
+fi
+if ! cmake --build "$HOST_BUILD_DIR" --parallel 2 \
+    > "$LOG_DIR/host-cmake-build.log" 2>&1; then
+  echo 'RiftLLM host native build failed; details returned privately.' >&2
+  exit 1
+fi
+if ! ctest --test-dir "$HOST_BUILD_DIR" --output-on-failure \
+    > "$LOG_DIR/host-ctest.log" 2>&1; then
+  {
+    printf 'verification_stage=host-ctest\n'
+    printf '%s\n' '--- ctest output ---'
+    tail -n 120 "$LOG_DIR/host-ctest.log" 2>/dev/null || true
+  } > "$LOG_DIR/failure-summary.txt"
+  echo 'RiftLLM host native tests failed; details returned privately.' >&2
   exit 1
 fi
 
@@ -134,6 +211,8 @@ gradle=8.13
 android_platform=36
 android_build_tools=36.0.0
 ndk=28.2.13676358
+host_cmake=${HOST_CMAKE_VERSION}
+host_ctest=passed
 EOF
 
 python3 - "$OUT_DIR" <<'PY'
@@ -163,6 +242,8 @@ manifest = {
     "androidPlatform": 36,
     "buildTools": "36.0.0",
     "ndk": "28.2.13676358",
+    "hostCmake": os.environ.get("HOST_CMAKE_VERSION", "unknown"),
+    "hostCtest": "passed",
     "artifacts": artifacts,
 }
 with open(os.path.join(out, 'build-manifest.json'), 'w', encoding='utf-8') as f:

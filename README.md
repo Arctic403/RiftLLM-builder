@@ -4,7 +4,7 @@ Public GitHub Actions worker for building the **private** `Arctic403/RiftLLM` An
 
 The worker is infrastructure only. It receives an exact private RiftLLM source ref, resolves it to an immutable commit SHA, checks out that private commit with a restricted fine-grained token, runs the source-owned hardening gates, builds the three Android debug APK variants, verifies the final APKs, and publishes successful outputs back to a **private RiftLLM prerelease**. Failure diagnostics are zipped and returned to a private failure prerelease.
 
-No `actions/upload-artifact` step is allowed. The ephemeral private checkout is deleted at the end of every run.
+No `actions/upload-artifact` step is allowed. The ephemeral private checkout, host CMake build tree, verification/output directories, and detailed private logs are deleted by the always-run cleanup at the end of every run.
 
 ## Privacy boundary
 
@@ -40,14 +40,15 @@ The public runner necessarily knows the private repository name and exact commit
 1. Resolve `source_ref` to an immutable SHA through the GitHub API.
 2. Verify the checked-out private source has exactly that SHA and a byte-clean tree.
 3. Reject the build if the private source repository contains any `.github/workflows/*` file.
-4. Generate the pinned Gradle 8.13 wrapper inside the ephemeral checkout.
-5. Run the exact source commit's `scripts/prebuild-check.sh`.
-6. Fetch the source-pinned llama.cpp revision with `scripts/fetch-llama.sh`.
-7. Build `:app:assembleDebug` using JDK 17, Android 36, Build Tools 36.0.0 and NDK 28.2.13676358.
-8. Require exactly one `armeabi-v7a`, one `arm64-v8a`, and one universal APK based on their actual packaged native libraries.
-9. Verify package id, absence of INTERNET permission, APK signature, 16 KiB native alignment, Java shell, native RiftLLM runtime marker and ABI payload.
-10. Produce SHA-256 sums, provenance and a machine-readable build manifest.
-11. Publish only to a private RiftLLM prerelease; never to a public Actions artifact.
+4. Require the production-training/RiftPack qualification source contract: RiftPack writer/SHA sources, qualification native lab, Kotlin qualification bridge, RiftTrainData V2 reader, qualification/V2 docs, host RiftPack test, CMake wiring, JNI entry, Dev API routes, fail-closed promotion flags, corruption/interrupted-stage evidence markers, installed-APK evidence binding, and the 2 GiB qualification storage guard.
+5. Generate the pinned Gradle 8.13 wrapper inside the ephemeral checkout and run the exact source commit's `scripts/prebuild-check.sh`.
+6. Configure/build the host CMake tree with `RIFTLLM_BUILD_TESTS=ON` and require CTest to pass, including `riftllm_rift_pack_v1`. Record the host CMake version and successful CTest gate in provenance.
+7. Fetch the source-pinned llama.cpp revision with `scripts/fetch-llama.sh`.
+8. Build `:app:assembleDebug` using JDK 17, Android 36, Build Tools 36.0.0 and NDK 28.2.13676358.
+9. Require exactly one `armeabi-v7a`, one `arm64-v8a`, and one universal APK based on their actual packaged native libraries.
+10. Verify package id, absence of INTERNET permission, APK signature, 16 KiB native alignment, MainActivity, `RiftPackQualificationBridge`, `RiftTrainDataV2Reader`, both RiftPack qualification Dev API route strings, the existing promoted RiftTensor marker, the native RiftPack qualification format marker, its exported JNI entry, and the expected ABI payload.
+11. Produce SHA-256 sums, provenance and a machine-readable build manifest.
+12. Publish only to a private RiftLLM prerelease; never to a public Actions artifact.
 
 ## Required builder secret
 

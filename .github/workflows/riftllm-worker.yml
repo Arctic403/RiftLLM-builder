@@ -158,6 +158,7 @@ jobs:
         if: ${{ always() }}
         run: |
           rm -rf source
+          rm -rf "$RUNNER_TEMP/riftllm-host-build"
           rm -rf "$RUNNER_TEMP/riftllm-private-logs"
           rm -rf "$RUNNER_TEMP/riftllm-output" "$RUNNER_TEMP/riftllm-verification"
-          echo 'Private RiftLLM checkout, outputs and detailed logs removed from the ephemeral public runner.'
+          echo 'Private RiftLLM checkout, host build tree, outputs and detailed logs removed from the ephemeral public runner.'
