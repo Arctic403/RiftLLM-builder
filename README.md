@@ -46,7 +46,7 @@ The public runner necessarily knows the private repository name and exact commit
 7. Fetch the source-pinned llama.cpp revision with `scripts/fetch-llama.sh`.
 8. Build `:app:assembleDebug` using JDK 17, Android 36, Build Tools 36.0.0 and NDK 28.2.13676358.
 9. Require exactly one `armeabi-v7a`, one `arm64-v8a`, and one universal APK based on their actual packaged native libraries.
-10. Verify package id, absence of INTERNET permission, APK signature, 16 KiB native alignment, MainActivity, `RiftPackQualificationBridge`, `RiftProcessDeathRecoveryBridge`, `RiftTrainDataV2Reader`, both RiftPack qualification Dev API route strings, both fixed process-death Dev API route strings, the existing promoted RiftTensor marker, the native RiftPack qualification format marker, its exported JNI entry, both shared process-death JNI entries, and the expected ABI payload.
+10. Verify package id, absence of INTERNET permission, APK signature, 16 KiB native alignment, MainActivity, `RiftPackQualificationBridge`, `RiftProcessDeathRecoveryBridge`, `RiftTrainDataV2Reader`, both RiftPack qualification Dev API route strings, both fixed process-death Dev API route strings, preserved-checkpoint retry evidence, raw native resume-result evidence, the existing promoted RiftTensor marker, the native RiftPack qualification format marker, its exported JNI entry, both shared process-death JNI entries, and the expected ABI payload.
 11. Produce SHA-256 sums, provenance and a machine-readable build manifest.
 12. Publish only to a private RiftLLM prerelease; never to a public Actions artifact.
 

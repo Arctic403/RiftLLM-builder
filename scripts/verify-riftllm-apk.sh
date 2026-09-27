@@ -95,6 +95,8 @@ check_dex_marker 'riftpack_qualification_start' 'RiftPack qualification Dev API 
 check_dex_marker 'riftpack_qualification_status' 'RiftPack qualification Dev API status route'
 check_dex_marker 'rift_micro_process_death_start' 'Rift-Micro process-death Dev API start route'
 check_dex_marker 'rift_micro_process_death_status' 'Rift-Micro process-death Dev API status route'
+check_dex_marker 'resumeRetryAvailable' 'Rift-Micro preserved-checkpoint retry evidence'
+check_dex_marker 'nativeResult' 'Rift-Micro raw native resume result evidence'
 
 check_native_markers() {
   local entry="$1"
