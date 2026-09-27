@@ -151,18 +151,67 @@ test "${#APKS[@]}" -eq 3 || {
 }
 
 EXPECTED_SIGNING_SHA256="${RIFTLLM_EXPECTED_SIGNING_SHA256:-}"
-[[ "$EXPECTED_SIGNING_SHA256" =~ ^[0-9a-f]{64}$ ]] || {
+if ! [[ "$EXPECTED_SIGNING_SHA256" =~ ^[0-9a-f]{64}$ ]]; then
+  {
+    printf 'verification_stage=stable-signing\n'
+    printf 'reason=expected-fingerprint-missing-or-invalid\n'
+  } > "$LOG_DIR/failure-summary.txt"
   echo 'RIFTLLM_EXPECTED_SIGNING_SHA256 is missing or invalid.' >&2
   exit 1
-}
+fi
+
 APKSIGNER="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}/build-tools/36.0.0/apksigner"
-test -x "$APKSIGNER" || { echo 'Android apksigner 36.0.0 is unavailable.' >&2; exit 1; }
+if [ ! -x "$APKSIGNER" ]; then
+  {
+    printf 'verification_stage=stable-signing\n'
+    printf 'reason=apksigner-unavailable\n'
+    printf 'resolved_path=%s\n' "$APKSIGNER"
+  } > "$LOG_DIR/failure-summary.txt"
+  echo 'Android apksigner 36.0.0 is unavailable.' >&2
+  exit 1
+fi
+
 for apk in "${APKS[@]}"; do
-  ACTUAL_SIGNING_SHA256="$("$APKSIGNER" verify --print-certs "$apk" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n 1 | tr -d ':' | tr '[:upper:]' '[:lower:]')"
-  test "$ACTUAL_SIGNING_SHA256" = "$EXPECTED_SIGNING_SHA256" || {
+  SIGNING_LOG="$VERIFY_DIR/signing-$(basename "$apk").txt"
+  if ! "$APKSIGNER" verify --print-certs "$apk" > "$SIGNING_LOG" 2>&1; then
+    cp "$SIGNING_LOG" "$LOG_DIR/signing-$(basename "$apk").log" || true
+    {
+      printf 'verification_stage=stable-signing\n'
+      printf 'reason=apksigner-verification-failed\n'
+      printf 'artifact=%s\n' "$(basename "$apk")"
+      printf '%s\n' '--- apksigner output ---'
+      tail -n 40 "$SIGNING_LOG" 2>/dev/null || true
+    } > "$LOG_DIR/failure-summary.txt"
+    echo "APK signature verification failed for $(basename "$apk")." >&2
+    exit 1
+  fi
+
+  ACTUAL_SIGNING_SHA256="$(sed -n -E 's/^.*certificate SHA-256 digest:[[:space:]]*([0-9A-Fa-f:]+).*$/\1/p' "$SIGNING_LOG" | head -n 1 | tr -d ':' | tr '[:upper:]' '[:lower:]')"
+  if ! [[ "$ACTUAL_SIGNING_SHA256" =~ ^[0-9a-f]{64}$ ]]; then
+    cp "$SIGNING_LOG" "$LOG_DIR/signing-$(basename "$apk").log" || true
+    {
+      printf 'verification_stage=stable-signing\n'
+      printf 'reason=certificate-fingerprint-unparseable\n'
+      printf 'artifact=%s\n' "$(basename "$apk")"
+      printf 'expected_sha256=%s\n' "$EXPECTED_SIGNING_SHA256"
+      printf '%s\n' '--- apksigner output ---'
+      tail -n 40 "$SIGNING_LOG" 2>/dev/null || true
+    } > "$LOG_DIR/failure-summary.txt"
+    echo "Could not parse APK signing certificate for $(basename "$apk")." >&2
+    exit 1
+  fi
+
+  if [ "$ACTUAL_SIGNING_SHA256" != "$EXPECTED_SIGNING_SHA256" ]; then
+    {
+      printf 'verification_stage=stable-signing\n'
+      printf 'reason=certificate-fingerprint-mismatch\n'
+      printf 'artifact=%s\n' "$(basename "$apk")"
+      printf 'expected_sha256=%s\n' "$EXPECTED_SIGNING_SHA256"
+      printf 'actual_sha256=%s\n' "$ACTUAL_SIGNING_SHA256"
+    } > "$LOG_DIR/failure-summary.txt"
     echo "APK signing certificate mismatch for $(basename "$apk")." >&2
     exit 1
-  }
+  fi
 done
 
 seen_arm32=0
