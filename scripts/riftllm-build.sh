@@ -68,7 +68,9 @@ for required_source in \
   android/app/src/main/java/com/riftllm/app/RiftTrainingDevBridge.kt \
   android/app/src/main/java/com/riftllm/app/RiftTrainDataV2Reader.kt \
   docs/RIFTPACK_QUALIFICATION_LAB_V1.md \
+  docs/RIFTPACK_BASELINE_A.md \
   docs/RIFTPACK_V1.md \
+  evidence/device/riftpack-qualification-live-2026-09-27.json \
   docs/RIFT_TRAIN_DATA_V2.md \
   tests/rift_pack_v1.cpp; do
   test -f "$required_source" || source_contract_fail \
@@ -98,6 +100,15 @@ require_source_marker android/app/src/main/java/com/riftllm/app/RiftPackQualific
 require_source_marker android/app/src/main/java/com/riftllm/app/RiftPackQualificationBridge.kt 'MIN_FREE_BYTES = 3L * 1024L * 1024L * 1024L' 'RiftPack real-state qualification storage guard'
 require_source_marker android/app/src/main/java/com/riftllm/app/RiftPackQualificationBridge.kt 'architectureSequence()' 'validated trainer-sequence derivation'
 require_source_marker android/app/src/main/java/com/riftllm/app/RiftPackQualificationBridge.kt 'actualSelectedTrainerStatePackaged' 'selected-trainer bridge evidence enforcement'
+require_source_marker android/app/src/main/java/com/riftllm/app/RiftPackQualificationBridge.kt 'RIFT_PACK_FROZEN = true' 'RiftPack frozen-state source marker'
+require_source_marker android/app/src/main/java/com/riftllm/app/RiftPackQualificationBridge.kt 'RIFT_PACK_BASELINE_ID = "riftpack-v1-baseline-a"' 'RiftPack baseline source identity'
+require_source_marker android/app/src/main/java/com/riftllm/app/RiftPackQualificationBridge.kt 'riftPackBaselineId' 'RiftPack baseline status field'
+require_source_marker android/app/src/main/java/com/riftllm/app/RiftProcessDeathRecoveryBridge.kt 'RIFT_PACK_FROZEN = true' 'process-death current RiftPack frozen-state marker'
+require_source_marker docs/RIFTPACK_BASELINE_A.md 'deviceEvidenceSha256=0c7d16740b6d1fc1a95bc893b442e30e8604f37bae8f60e560f93569797c05e3' 'RiftPack frozen evidence identity'
+require_source_marker docs/RIFTPACK_BASELINE_A.md 'run-riftpack-qualification-1790557274990.json' 'RiftPack promotion record identity'
+require_source_marker docs/RIFTPACK_BASELINE_A.md 'riftPackFrozen=true' 'RiftPack Baseline A freeze marker'
+require_source_marker evidence/device/riftpack-qualification-live-2026-09-27.json '"actualSelectedTrainerStatePackaged": true' 'preserved selected-trainer promotion evidence'
+require_source_marker evidence/device/riftpack-qualification-live-2026-09-27.json 'f463512c3e04ee4f0d82ec329ee13e72227d922bebcdf63f09a9f27b8c1afd9e' 'preserved complete RiftPack identity'
 require_source_marker android/app/src/main/cpp/rift_pack_qualification_lab.cpp 'prepare_rift_micro_process_death_recovery_lab_v1' 'frozen selected-trainer checkpoint authority reuse'
 require_source_marker android/app/src/main/cpp/rift_pack_qualification_lab.cpp 'selected-adafactor-checkpoint-v1' 'selected Adafactor checkpoint evidence identity'
 require_source_marker android/app/src/main/cpp/rift_pack_qualification_lab.cpp 'selectedCheckpointMasterHash64' 'selected checkpoint master identity evidence'

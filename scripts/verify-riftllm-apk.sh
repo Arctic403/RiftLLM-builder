@@ -33,6 +33,14 @@ grep -Fq "package: name='com.riftllm.app'" <<< "$badging" || {
   echo 'APK package id is not com.riftllm.app.' >&2
   exit 1
 }
+grep -Fq "versionCode='42'" <<< "$badging" || {
+  echo 'RiftLLM promotion APK versionCode is not 42.' >&2
+  exit 1
+}
+grep -Fq "versionName='0.30.6'" <<< "$badging" || {
+  echo 'RiftLLM promotion APK versionName is not 0.30.6.' >&2
+  exit 1
+}
 
 permissions="$($AAPT2 dump permissions "$APK")"
 if grep -Fq 'android.permission.INTERNET' <<< "$permissions"; then
@@ -97,6 +105,8 @@ check_dex_marker 'actualSelectedTrainerStatePackaged' 'RiftPack real selected-tr
 check_dex_marker 'trainingDataPackSha256' 'RiftPack real training-data provenance field'
 check_dex_marker 'Validated four-transition RiftTrain sequence is unavailable' 'RiftPack validated trainer-sequence gate'
 check_dex_marker 'RiftPack qualification did not package the selected trainer state' 'RiftPack real-state bridge enforcement'
+check_dex_marker 'riftPackBaselineId' 'RiftPack current baseline status field'
+check_dex_marker 'riftpack-v1-baseline-a' 'RiftPack frozen Baseline A identity'
 check_dex_marker 'rift_micro_process_death_start' 'Rift-Micro process-death Dev API start route'
 check_dex_marker 'rift_micro_process_death_status' 'Rift-Micro process-death Dev API status route'
 check_dex_marker 'resumeRetryAvailable' 'Rift-Micro preserved-checkpoint retry evidence'
