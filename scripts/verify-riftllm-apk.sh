@@ -33,12 +33,12 @@ grep -Fq "package: name='com.riftllm.app'" <<< "$badging" || {
   echo 'APK package id is not com.riftllm.app.' >&2
   exit 1
 }
-grep -Fq "versionCode='42'" <<< "$badging" || {
-  echo 'RiftLLM promotion APK versionCode is not 42.' >&2
+grep -Fq "versionCode='43'" <<< "$badging" || {
+  echo 'RiftLLM V0.30.7 APK versionCode is not 43.' >&2
   exit 1
 }
-grep -Fq "versionName='0.30.6'" <<< "$badging" || {
-  echo 'RiftLLM promotion APK versionName is not 0.30.6.' >&2
+grep -Fq "versionName='0.30.7'" <<< "$badging" || {
+  echo 'RiftLLM V0.30.7 APK versionName is not 0.30.7.' >&2
   exit 1
 }
 
@@ -72,7 +72,7 @@ grep -Fq 'com.riftllm.app.MainActivity' <<< "$manifest_xml" || {
 }
 
 dex_packages="$($APKANALYZER dex packages --defined-only "$APK")"
-for required_class in   com.riftllm.app.MainActivity   com.riftllm.app.RiftPackQualificationBridge   com.riftllm.app.RiftProcessDeathRecoveryBridge   com.riftllm.app.RiftTrainDataV2Reader; do
+for required_class in   com.riftllm.app.MainActivity   com.riftllm.app.RiftPackQualificationBridge   com.riftllm.app.RiftProcessDeathRecoveryBridge   com.riftllm.app.RiftTrainDataV2Reader   com.riftllm.app.RiftTrainDataV2QualificationBridge; do
   grep -Fq "$required_class" <<< "$dex_packages" || {
     echo "Required RiftLLM class is not defined in packaged DEX: $required_class" >&2
     exit 1
@@ -113,6 +113,13 @@ check_dex_marker 'resumeRetryAvailable' 'Rift-Micro preserved-checkpoint retry e
 check_dex_marker 'nativeResult' 'Rift-Micro raw native resume result evidence'
 check_dex_marker 'processResumeThreadRunning' 'Rift-Micro process-global resume lease evidence'
 check_dex_marker 'rift-micro-process-death-recovery-baseline-a' 'Rift-Micro frozen process-death recovery baseline identity'
+check_dex_marker 'train_v2_adversarial_start' 'RiftTrainData V2 adversarial Dev API start route'
+check_dex_marker 'train_v2_adversarial_status' 'RiftTrainData V2 adversarial Dev API status route'
+check_dex_marker 'riftllm-rift-train-data-v2-adversarial-v1' 'RiftTrainData V2 adversarial evidence format'
+check_dex_marker 'header-architecture-corruption' 'RiftTrainData V2 header corruption case'
+check_dex_marker 'index-reserved-nonzero' 'RiftTrainData V2 deep reserved-index case'
+check_dex_marker 'bos-boundary-corruption' 'RiftTrainData V2 deep BOS-boundary case'
+check_dex_marker 'RiftTrainData V2 adversarial evidence does not match installed APK' 'RiftTrainData V2 installed-APK evidence gate'
 
 check_native_markers() {
   local entry="$1"

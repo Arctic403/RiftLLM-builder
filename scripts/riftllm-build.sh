@@ -67,11 +67,13 @@ for required_source in \
   android/app/src/main/java/com/riftllm/app/RiftPackQualificationBridge.kt \
   android/app/src/main/java/com/riftllm/app/RiftTrainingDevBridge.kt \
   android/app/src/main/java/com/riftllm/app/RiftTrainDataV2Reader.kt \
+  android/app/src/main/java/com/riftllm/app/RiftTrainDataV2QualificationBridge.kt \
   docs/RIFTPACK_QUALIFICATION_LAB_V1.md \
   docs/RIFTPACK_BASELINE_A.md \
   docs/RIFTPACK_V1.md \
   evidence/device/riftpack-qualification-live-2026-09-27.json \
   docs/RIFT_TRAIN_DATA_V2.md \
+  docs/RIFT_TRAIN_DATA_V2_ADVERSARIAL_LAB_V1.md \
   tests/rift_pack_v1.cpp; do
   test -f "$required_source" || source_contract_fail \
     "RiftLLM builder contract missing required source: $required_source"
@@ -116,6 +118,18 @@ require_source_marker android/app/src/main/cpp/rift_pack_qualification_lab.cpp '
 require_source_marker android/app/src/main/cpp/rift_pack_qualification_lab.cpp '8622bbf5824dd50b' 'frozen selected checkpoint master hash'
 require_source_marker android/app/src/main/cpp/rift_pack_qualification_lab.cpp 'cf1010db7b11a48d' 'frozen selected checkpoint optimizer hash'
 require_source_marker android/app/src/main/cpp/rift_pack_qualification_lab.cpp 'trainingDataPackSha256' 'real RiftTrain pack provenance evidence'
+require_source_marker android/app/src/main/java/com/riftllm/app/RiftDevLabProvider.kt 'train_v2_adversarial_start' 'RiftTrainData V2 adversarial Dev API start route'
+require_source_marker android/app/src/main/java/com/riftllm/app/RiftDevLabProvider.kt 'train_v2_adversarial_status' 'RiftTrainData V2 adversarial Dev API status route'
+require_source_marker android/app/src/main/java/com/riftllm/app/RiftTrainDataV2QualificationBridge.kt 'riftllm-rift-train-data-v2-adversarial-v1' 'RiftTrainData V2 adversarial evidence format'
+require_source_marker android/app/src/main/java/com/riftllm/app/RiftTrainDataV2QualificationBridge.kt 'truncated-pack' 'RiftTrainData V2 truncation case'
+require_source_marker android/app/src/main/java/com/riftllm/app/RiftTrainDataV2QualificationBridge.kt 'trailing-byte' 'RiftTrainData V2 trailing-byte case'
+require_source_marker android/app/src/main/java/com/riftllm/app/RiftTrainDataV2QualificationBridge.kt 'header-architecture-corruption' 'RiftTrainData V2 header corruption case'
+require_source_marker android/app/src/main/java/com/riftllm/app/RiftTrainDataV2QualificationBridge.kt 'index-reserved-nonzero' 'RiftTrainData V2 reserved-index case'
+require_source_marker android/app/src/main/java/com/riftllm/app/RiftTrainDataV2QualificationBridge.kt 'bos-boundary-corruption' 'RiftTrainData V2 BOS-boundary case'
+require_source_marker android/app/src/main/java/com/riftllm/app/RiftTrainDataV2QualificationBridge.kt 'indexSha256", sha256Bytes(reservedIndex)' 'RiftTrainData V2 deep reserved-index checksum repair'
+require_source_marker android/app/src/main/java/com/riftllm/app/RiftTrainDataV2QualificationBridge.kt 'recordRegionSha256", sha256Bytes(boundaryRecord)' 'RiftTrainData V2 deep BOS-boundary checksum repair'
+require_source_marker android/app/src/main/java/com/riftllm/app/RiftTrainDataV2QualificationBridge.kt 'installedApkSha256' 'RiftTrainData V2 installed-APK evidence binding'
+require_source_marker docs/RIFT_TRAIN_DATA_V2_ADVERSARIAL_LAB_V1.md 'Exactly five cases are required' 'RiftTrainData V2 exact adversarial case contract'
 printf '%s\n' 'builder-source-contract=pass' >> "$SOURCE_CONTRACT_LOG"
 
 # The source intentionally does not carry generated Gradle-wrapper binaries. Generate the
