@@ -33,12 +33,12 @@ grep -Fq "package: name='com.riftllm.app'" <<< "$badging" || {
   echo 'APK package id is not com.riftllm.app.' >&2
   exit 1
 }
-grep -Fq "versionCode='43'" <<< "$badging" || {
-  echo 'RiftLLM V0.30.7 APK versionCode is not 43.' >&2
+grep -Fq "versionCode='44'" <<< "$badging" || {
+  echo 'RiftLLM V0.30.8 APK versionCode is not 44.' >&2
   exit 1
 }
-grep -Fq "versionName='0.30.7'" <<< "$badging" || {
-  echo 'RiftLLM V0.30.7 APK versionName is not 0.30.7.' >&2
+grep -Fq "versionName='0.30.8'" <<< "$badging" || {
+  echo 'RiftLLM V0.30.8 APK versionName is not 0.30.8.' >&2
   exit 1
 }
 
@@ -72,7 +72,7 @@ grep -Fq 'com.riftllm.app.MainActivity' <<< "$manifest_xml" || {
 }
 
 dex_packages="$($APKANALYZER dex packages --defined-only "$APK")"
-for required_class in   com.riftllm.app.MainActivity   com.riftllm.app.RiftPackQualificationBridge   com.riftllm.app.RiftProcessDeathRecoveryBridge   com.riftllm.app.RiftTrainDataV2Reader   com.riftllm.app.RiftTrainDataV2QualificationBridge; do
+for required_class in   com.riftllm.app.MainActivity   com.riftllm.app.RiftPackQualificationBridge   com.riftllm.app.RiftProcessDeathRecoveryBridge   com.riftllm.app.RiftTrainDataV2Reader   com.riftllm.app.RiftTrainDataV2QualificationBridge   com.riftllm.app.RiftTrainDataV2Builder   com.riftllm.app.RiftTrainDataV2BuilderQualificationBridge; do
   grep -Fq "$required_class" <<< "$dex_packages" || {
     echo "Required RiftLLM class is not defined in packaged DEX: $required_class" >&2
     exit 1
@@ -120,6 +120,13 @@ check_dex_marker 'header-architecture-corruption' 'RiftTrainData V2 header corru
 check_dex_marker 'index-reserved-nonzero' 'RiftTrainData V2 deep reserved-index case'
 check_dex_marker 'bos-boundary-corruption' 'RiftTrainData V2 deep BOS-boundary case'
 check_dex_marker 'RiftTrainData V2 adversarial evidence does not match installed APK' 'RiftTrainData V2 installed-APK evidence gate'
+check_dex_marker 'train_v2_builder_start' 'RiftTrainData V2 builder qualification Dev API start route'
+check_dex_marker 'train_v2_builder_status' 'RiftTrainData V2 builder qualification Dev API status route'
+check_dex_marker 'riftllm-rift-train-data-v2-builder-qualification-v1' 'RiftTrainData V2 builder evidence format'
+check_dex_marker 'productionEncoderParityPassed' 'RiftTrainData V2 production/reference B2 parity evidence'
+check_dex_marker 'reorderedInputDeterminismPassed' 'RiftTrainData V2 reordered-input determinism evidence'
+check_dex_marker 'productionScaleStreamingImplemented' 'RiftTrainData V2 production-scale boundary field'
+check_dex_marker 'RiftTrainData V2 bounded candidate builder exceeds 4096-record ceiling' 'RiftTrainData V2 bounded builder ceiling enforcement'
 
 check_native_markers() {
   local entry="$1"

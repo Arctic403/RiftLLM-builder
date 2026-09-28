@@ -68,6 +68,8 @@ for required_source in \
   android/app/src/main/java/com/riftllm/app/RiftTrainingDevBridge.kt \
   android/app/src/main/java/com/riftllm/app/RiftTrainDataV2Reader.kt \
   android/app/src/main/java/com/riftllm/app/RiftTrainDataV2QualificationBridge.kt \
+  android/app/src/main/java/com/riftllm/app/RiftTrainDataV2Builder.kt \
+  android/app/src/main/java/com/riftllm/app/RiftTrainDataV2BuilderQualificationBridge.kt \
   docs/RIFTPACK_QUALIFICATION_LAB_V1.md \
   docs/RIFTPACK_BASELINE_A.md \
   docs/RIFTPACK_V1.md \
@@ -75,6 +77,7 @@ for required_source in \
   docs/RIFT_TRAIN_DATA_V2.md \
   docs/RIFT_TRAIN_DATA_V2_ADVERSARIAL_LAB_V1.md \
   docs/RIFT_TRAIN_DATA_V2_ADVERSARIAL_BASELINE_A.md \
+  docs/RIFT_TRAIN_DATA_V2_BUILDER_QUALIFICATION_V1.md \
   evidence/device/rift-train-data-v2-adversarial-live-2026-09-27.json \
   tests/rift_pack_v1.cpp; do
   test -f "$required_source" || source_contract_fail \
@@ -139,6 +142,21 @@ require_source_marker evidence/device/rift-train-data-v2-adversarial-live-2026-0
 require_source_marker evidence/device/rift-train-data-v2-adversarial-live-2026-09-27.json '"installedApkSha256": "d5b22482bdec3cf825842fe2c20d6d0c0eb4c55ac7606e30b11d30fccd06f903"' 'preserved RiftTrainData V2 adversarial installed APK identity'
 require_source_marker evidence/device/rift-train-data-v2-adversarial-live-2026-09-27.json '"deepInvariantCasesPassed": true' 'preserved RiftTrainData V2 deep-invariant pass evidence'
 require_source_marker evidence/device/rift-train-data-v2-adversarial-live-2026-09-27.json '"productionPretrainingEligible": false' 'preserved RiftTrainData V2 production-ineligible boundary'
+require_source_marker android/app/src/main/java/com/riftllm/app/RiftTextEncodingLab.kt 'encodeProduction' 'bounded production B2 encoder'
+require_source_marker android/app/src/main/java/com/riftllm/app/RiftTextEncodingLab.kt 'PriorityQueue' 'production B2 encoder queue'
+require_source_marker android/app/src/main/java/com/riftllm/app/RiftTrainDataV2Builder.kt 'MAX_CANDIDATE_RECORDS = 4096' 'bounded V2 builder ceiling'
+require_source_marker android/app/src/main/java/com/riftllm/app/RiftTrainDataV2Builder.kt 'productionScaleStreamingImplemented", false' 'production-scale streaming false boundary'
+require_source_marker android/app/src/main/java/com/riftllm/app/RiftTrainDataV2Builder.kt 'inputRole' 'split-pool/challenge descriptor role binding'
+require_source_marker android/app/src/main/java/com/riftllm/app/RiftTrainDataV2Builder.kt 'challengeGroupOverlapCount", 0' 'challenge source-group isolation evidence'
+require_source_marker android/app/src/main/java/com/riftllm/app/RiftTrainDataV2Builder.kt 'StandardCopyOption.ATOMIC_MOVE' 'atomic generation publication'
+require_source_marker android/app/src/main/java/com/riftllm/app/RiftTrainDataV2Builder.kt 'CURRENT.json' 'deterministic CURRENT publication'
+require_source_marker android/app/src/main/java/com/riftllm/app/RiftDevLabProvider.kt 'train_v2_builder_start' 'V2 builder qualification start route'
+require_source_marker android/app/src/main/java/com/riftllm/app/RiftDevLabProvider.kt 'train_v2_builder_status' 'V2 builder qualification status route'
+require_source_marker android/app/src/main/java/com/riftllm/app/RiftTrainDataV2BuilderQualificationBridge.kt 'productionEncoderParityPassed' 'production/reference encoder parity evidence'
+require_source_marker android/app/src/main/java/com/riftllm/app/RiftTrainDataV2BuilderQualificationBridge.kt 'reorderedInputDeterminismPassed' 'reordered-input determinism evidence'
+require_source_marker android/app/src/main/java/com/riftllm/app/RiftTrainDataV2BuilderQualificationBridge.kt 'currentPointerDeterministic' 'deterministic CURRENT evidence'
+require_source_marker android/app/src/main/java/com/riftllm/app/RiftTrainDataV2BuilderQualificationBridge.kt 'productionScaleStreamingImplemented", false' 'V2 builder qualification production-scale false boundary'
+require_source_marker docs/RIFT_TRAIN_DATA_V2_BUILDER_QUALIFICATION_V1.md 'MAX_CANDIDATE_RECORDS=4096' 'V2 builder qualification ceiling contract'
 test "$(wc -c < evidence/device/rift-train-data-v2-adversarial-live-2026-09-27.json | tr -d ' ')" = "1807" || source_contract_fail "RiftTrainData V2 adversarial frozen evidence byte size drifted"
 test "$(sha256sum evidence/device/rift-train-data-v2-adversarial-live-2026-09-27.json | cut -c1-64)" = "59bf2d1695a226f585f9a04649a02e4916f7ca287e74e64e85c370681b79cd8a" || source_contract_fail "RiftTrainData V2 adversarial frozen evidence SHA-256 drifted"
 printf '%s\n' 'builder-source-contract=pass' >> "$SOURCE_CONTRACT_LOG"
