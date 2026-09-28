@@ -74,6 +74,8 @@ for required_source in \
   evidence/device/riftpack-qualification-live-2026-09-27.json \
   docs/RIFT_TRAIN_DATA_V2.md \
   docs/RIFT_TRAIN_DATA_V2_ADVERSARIAL_LAB_V1.md \
+  docs/RIFT_TRAIN_DATA_V2_ADVERSARIAL_BASELINE_A.md \
+  evidence/device/rift-train-data-v2-adversarial-live-2026-09-27.json \
   tests/rift_pack_v1.cpp; do
   test -f "$required_source" || source_contract_fail \
     "RiftLLM builder contract missing required source: $required_source"
@@ -130,6 +132,15 @@ require_source_marker android/app/src/main/java/com/riftllm/app/RiftTrainDataV2Q
 require_source_marker android/app/src/main/java/com/riftllm/app/RiftTrainDataV2QualificationBridge.kt 'recordRegionSha256", sha256Bytes(boundaryRecord)' 'RiftTrainData V2 deep BOS-boundary checksum repair'
 require_source_marker android/app/src/main/java/com/riftllm/app/RiftTrainDataV2QualificationBridge.kt 'installedApkSha256' 'RiftTrainData V2 installed-APK evidence binding'
 require_source_marker docs/RIFT_TRAIN_DATA_V2_ADVERSARIAL_LAB_V1.md 'Exactly five cases are required' 'RiftTrainData V2 exact adversarial case contract'
+require_source_marker docs/RIFT_TRAIN_DATA_V2_ADVERSARIAL_BASELINE_A.md 'adversarialParserQualified=true' 'RiftTrainData V2 adversarial Baseline A qualification marker'
+require_source_marker docs/RIFT_TRAIN_DATA_V2_ADVERSARIAL_BASELINE_A.md 'adversarialParserBaselineId=rift-train-data-v2-adversarial-baseline-a' 'RiftTrainData V2 adversarial Baseline A identity'
+require_source_marker docs/RIFT_TRAIN_DATA_V2_ADVERSARIAL_BASELINE_A.md 'deviceEvidenceSha256=59bf2d1695a226f585f9a04649a02e4916f7ca287e74e64e85c370681b79cd8a' 'RiftTrainData V2 adversarial frozen evidence identity'
+require_source_marker evidence/device/rift-train-data-v2-adversarial-live-2026-09-27.json '"jobId": "train-v2-adversarial-1790561976703-ea913365"' 'preserved RiftTrainData V2 adversarial promotion job'
+require_source_marker evidence/device/rift-train-data-v2-adversarial-live-2026-09-27.json '"installedApkSha256": "d5b22482bdec3cf825842fe2c20d6d0c0eb4c55ac7606e30b11d30fccd06f903"' 'preserved RiftTrainData V2 adversarial installed APK identity'
+require_source_marker evidence/device/rift-train-data-v2-adversarial-live-2026-09-27.json '"deepInvariantCasesPassed": true' 'preserved RiftTrainData V2 deep-invariant pass evidence'
+require_source_marker evidence/device/rift-train-data-v2-adversarial-live-2026-09-27.json '"productionPretrainingEligible": false' 'preserved RiftTrainData V2 production-ineligible boundary'
+test "$(wc -c < evidence/device/rift-train-data-v2-adversarial-live-2026-09-27.json | tr -d ' ')" = "1807" || source_contract_fail "RiftTrainData V2 adversarial frozen evidence byte size drifted"
+test "$(sha256sum evidence/device/rift-train-data-v2-adversarial-live-2026-09-27.json | cut -c1-64)" = "59bf2d1695a226f585f9a04649a02e4916f7ca287e74e64e85c370681b79cd8a" || source_contract_fail "RiftTrainData V2 adversarial frozen evidence SHA-256 drifted"
 printf '%s\n' 'builder-source-contract=pass' >> "$SOURCE_CONTRACT_LOG"
 
 # The source intentionally does not carry generated Gradle-wrapper binaries. Generate the
